@@ -39,28 +39,10 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: terraform plan -out=tfplan
 
-    - name: Confirm Apply
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'apply'
-      run: |
-        echo "Do you want to apply the changes?(yes|no)"
-        read -r answer
-        if [ "$answer" != "yes" ]; then
-          echo "Apply canceled."
-          exit 1
-        fi
-
     - name: Terraform Apply
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'apply'
+      if: github.event_name == 'workflow_dispatch' && (github.event.inputs.command == 'apply' || github.event.inputs.command == 'apply and destroy')
       run: terraform apply -input=false tfplan
 
-    - name: Confirm Destroy
-      run: |
-        echo "Do you want to destroy the resources?"
-        read -r answer
-        if [ "$answer" != "yes" ]; then
-          echo "Destroy canceled."
-          exit 1
-        fi
-
     - name: Terraform Destroy
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'apply and destroy'
       run: terraform destroy --auto-approve
