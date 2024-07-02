@@ -3,16 +3,11 @@ name: Terraform CI/CD
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
   workflow_dispatch:
-    inputs:
-      planfile:
-        description: 'Path to the Terraform plan file'
-        required: false
-        default: 'planfile'
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -25,14 +20,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
-
-      - name: Terraform Init
+        with:
+          terraform_version: 1.0.0
+      - name: Initialize Terraform
+        working-directory: ./terraform
         run: terraform init -backend-config="tfstate.config"
-
-      - name: Terraform Validate
+      - name: Validate Terraform
+        working-directory: ./terraform
         run: terraform validate
 
   plan:
@@ -41,61 +37,58 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
-
-      - name: Terraform Init
+        with:
+          terraform_version: 1.0.0
+      - name: Initialize Terraform
+        working-directory: ./terraform
         run: terraform init -backend-config="tfstate.config"
-
       - name: Terraform Plan
-        run: |
-          terraform plan -out="${{ github.event.inputs.planfile }}"
-          echo "::set-output name=planfile::${{ github.event.inputs.planfile }}"
-        env:
-          TF_CLI_ARGS: "-input=false"
-      
-      - name: Save Planfile as Artifact
+        working-directory: ./terraform
+        run: terraform plan -out=tfplan
+      - name: Save Plan
         uses: actions/upload-artifact@v2
         with:
-          name: terraform-plan
-          path: ${{ github.event.inputs.planfile }}
+          name: tfplan
+          path: terraform/tfplan
 
   apply:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
     needs: plan
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Download Planfile
-        uses: actions/download-artifact@v2
-        with:
-          name: terraform-plan
-          path: ${{ github.event.inputs.planfile }}
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
-
-      - name: Terraform Apply
-        run: |
-          terraform apply -input=false "${{ github.event.inputs.planfile }}"
-        env:
-          CONFIRM_APPLY: true
+        with:
+          terraform_version: 1.0.0
+      - name: Initialize Terraform
+        working-directory: ./terraform
+        run: terraform init -backend-config="tfstate.config"
+      - name: Download Plan
+        uses: actions/download-artifact@v2
+        with:
+          name: tfplan
+          path: terraform/
+      - name: Apply Terraform
+        working-directory: ./terraform
+        run: terraform apply -input=false tfplan
 
   destroy:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
-
-      - name: Terraform Destroy
-        run: |
-          terraform destroy --auto-approve
-        env:
-          CONFIRM_DESTROY: true
+        with:
+          terraform_version: 1.0.0
+      - name: Initialize Terraform
+        working-directory: ./terraform
+        run: terraform init -backend-config="tfstate.config"
+      - name: Destroy Infrastructure
+        working-directory: ./terraform
+        run: terraform destroy --auto-approve
