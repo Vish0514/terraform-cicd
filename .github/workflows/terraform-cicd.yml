@@ -8,36 +8,39 @@ on:
     branches:
       - master
 
+# Define reusable steps
 jobs:
-  setup_and_init_terraform:
+  setup_and_init:
     runs-on: ubuntu-latest
     steps:
-      - &checkout_repo
-        name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v2
       
-      - &setup_terraform
-        name: Set up Terraform
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
       
       - name: Terraform Init
         run: terraform init -backend-config="tfstate.config"
 
+# Jobs for different Terraform actions
+jobs:
   terraform_validate:
     runs-on: ubuntu-latest
-    needs: setup_and_init_terraform
+    needs: setup_and_init
     steps:
-      - *checkout_repo
-      - *setup_terraform
+      - name: Use setup and init
+        uses: .setup_and_init
+
       - name: Terraform Validate
         run: terraform validate
 
   terraform_plan:
     runs-on: ubuntu-latest
-    needs: terraform_validate
+    needs: setup_and_init
     steps:
-      - *checkout_repo
-      - *setup_terraform
+      - name: Use setup and init
+        uses: .setup_and_init
+
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
@@ -46,8 +49,9 @@ jobs:
     if: github.event_name == 'push'
     needs: terraform_plan
     steps:
-      - *checkout_repo
-      - *setup_terraform
+      - name: Use setup and init
+        uses: .setup_and_init
+
       - name: Terraform Apply
         run: terraform apply -input=false tfplan
 
@@ -56,7 +60,8 @@ jobs:
     if: github.event_name == 'push'
     needs: terraform_apply
     steps:
-      - *checkout_repo
-      - *setup_terraform
+      - name: Use setup and init
+        uses: .setup_and_init
+
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
