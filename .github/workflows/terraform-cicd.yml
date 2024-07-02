@@ -33,7 +33,7 @@ jobs:
 
   terraform_plan:
     runs-on: ubuntu-latest
-    needs: setup_and_init
+    needs: terraform_validate
     steps:
       - name: Use setup and init
         uses: ./.github/actions/setup_and_init
