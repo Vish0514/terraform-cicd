@@ -42,7 +42,9 @@ jobs:
       run: terraform init -backend-config="tfstate.config"
 
     - name: Terraform Plan
-      run: terraform plan -out=tfplan
+      run: |
+        terraform plan -out=tfplan
+        mv tfplan $GITHUB_WORKSPACE/tfplan
 
   apply:
     runs-on: ubuntu-latest
@@ -59,7 +61,7 @@ jobs:
       run: terraform init -backend-config="tfstate.config"
 
     - name: Terraform Apply
-      run: terraform apply -input=false tfplan
+      run: terraform apply -input=false $GITHUB_WORKSPACE/tfplan
 
   destroy:
     runs-on: ubuntu-latest
