@@ -1,4 +1,5 @@
 name: Terraform CI/CD
+
 on:
   push:
     branches:
@@ -6,50 +7,56 @@ on:
   pull_request:
     branches:
       - master
-  workflow_dispatch:
-env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_DEFAULT_REGION: "us-east-1"
+
 jobs:
-  validate:
+  setup_and_init_terraform:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - &checkout_repo
+        name: Checkout repository
         uses: actions/checkout@v2
-
-      - name: Set up Terraform
+      
+      - &setup_terraform
+        name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
-
+      
       - name: Terraform Init
         run: terraform init -backend-config="tfstate.config"
 
+  terraform_validate:
+    runs-on: ubuntu-latest
+    needs: setup_and_init_terraform
+    steps:
+      - *checkout_repo
+      - *setup_terraform
       - name: Terraform Validate
         run: terraform validate
-  plan:
+
+  terraform_plan:
     runs-on: ubuntu-latest
-    needs: validate
+    needs: setup_and_init_terraform
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
-
-      - name: Terraform Init
-        run: terraform init -backend-config="tfstate.config"
-
+      - *checkout_repo
+      - *setup_terraform
       - name: Terraform Plan
-        run: terraform plan -out=tfplan	
-  apply:
+        run: terraform plan -out=tfplan
+
+  terraform_apply:
     runs-on: ubuntu-latest
-    needs: plan
+    if: github.event_name == 'push'
+    needs: terraform_plan
     steps:
+      - *checkout_repo
+      - *setup_terraform
       - name: Terraform Apply
         run: terraform apply -input=false tfplan
-  destroy:
+
+  terraform_destroy:
     runs-on: ubuntu-latest
-    needs: apply
+    if: github.event_name == 'push'
+    needs: terraform_apply
     steps:
+      - *checkout_repo
+      - *setup_terraform
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
