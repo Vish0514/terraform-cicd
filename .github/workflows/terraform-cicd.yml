@@ -42,9 +42,7 @@ jobs:
       run: terraform init -backend-config="tfstate.config"
 
     - name: Terraform Plan
-      run: |
-        terraform plan -out=tfplan
-        mv tfplan $GITHUB_WORKSPACE/tfplan
+      run: terraform plan -out=tfplan
 
   apply:
     runs-on: ubuntu-latest
