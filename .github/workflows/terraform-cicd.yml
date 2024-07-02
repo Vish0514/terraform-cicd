@@ -34,7 +34,7 @@ jobs:
 
   terraform_plan:
     runs-on: ubuntu-latest
-    needs: setup_and_init_terraform
+    needs: terraform_validate
     steps:
       - *checkout_repo
       - *setup_terraform
